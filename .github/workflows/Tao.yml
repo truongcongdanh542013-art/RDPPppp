@@ -1,0 +1,122 @@
+name: 🚀 LongVPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: '🕐 Thời gian sử dụng'
+        required: false
+        default: '5h40m'
+        type: choice
+        options:
+        - '1h'
+        - '3h'
+        - '5h40m'
+
+jobs:
+  Premium-RDP-Setup:
+    runs-on: windows-latest
+    timeout-minutes: 340
+
+    steps:
+      # Banner ASCII đơn giản
+      - name: 🔥 BANNER LONGVPS
+        run: |
+          $neonColors = @("Red","Magenta","Yellow","Cyan","Green")
+          $asciiArt = @"
+  ██████  ██      ██  ███▄ ▄███▓
+  ██   ██ ██      ██  ▓██▒▀█▀ ██▒
+  ██████  ██      ██  ▓██    ▓██░
+  ██   ██ ██      ██  ▒██    ▒██ 
+  ██████  ████████   ▒██▒   ░██▒
+     PREMIUM RDP SYSTEM – LONGVPS
+"@
+          for ($i=0; $i -lt 7; $i++) {
+              $color = $neonColors[$i % $neonColors.Count]
+              Write-Host "`n$asciiArt" -ForegroundColor $color
+              Start-Sleep -Milliseconds 140
+          }
+          Write-Host "`n⚡ INITIATING LONGVPS CORE..." -ForegroundColor Cyan
+
+      # Khởi động Remote Desktop + cấu hình
+      - name: 🔧 CẤU HÌNH HỆ THỐNG
+        run: |
+          # Bật RDP
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
+          # Tắt xác thực mạng
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
+          # Firewall
+          netsh advfirewall firewall add rule name="RDP-Premium" dir=in action=allow protocol=TCP localport=3389 profile=any
+          netsh advfirewall firewall add rule name="RDP-Premium-Out" dir=out action=allow protocol=TCP localport=3389 profile=any
+          # Dịch vụ RDP
+          Set-Service -Name TermService -StartupType Automatic
+          Start-Service -Name TermService
+
+      # Tạo user Premium
+      - name: 👤 TẠO USER PREMIUM
+        run: |
+          function New-PremiumPassword {
+              $upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
+              $lower = 'abcdefghijkmnpqrstuvwxyz'
+              $numbers = '23456789'
+              $all = $upper + $lower + $numbers
+
+              $pw = ''
+              $pw += $upper[(Get-Random -Minimum 0 -Maximum $upper.Length)]
+              $pw += $lower[(Get-Random -Minimum 0 -Maximum $lower.Length)]
+              $pw += $numbers[(Get-Random -Minimum 0 -Maximum $numbers.Length)]
+
+              for ($i = 1; $i -le 5; $i++) {
+                  $pw += $all[(Get-Random -Minimum 0 -Maximum $all.Length)]
+              }
+
+              return -join ($pw.ToCharArray() | Sort-Object { Get-Random })
+          }
+
+          $matKhau = New-PremiumPassword
+          $securePass = ConvertTo-SecureString $matKhau -AsPlainText -Force
+
+          Remove-LocalUser -Name "LongDay2203" -ErrorAction SilentlyContinue
+          New-LocalUser -Name "LongDay2203" -Password $securePass -AccountNeverExpires -Description "LongDay Premium User"
+          Enable-LocalUser -Name "LongDay2203"
+          Add-LocalGroupMember -Group "Administrators" -Member "LongDay2203"
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "LongDay2203"
+
+          echo "RDP_USER=LongDay2203" >> $env:GITHUB_ENV
+          echo "RDP_PASS=$matKhau" >> $env:GITHUB_ENV
+          Write-Host "✅ User LongDay2203 đã sẵn sàng. Password: $matKhau"
+
+      # Tailscale
+      - name: 🌐 CÀI TAILSCALE
+        env:
+          TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
+        run: |
+          $msiPath = "$env:TEMP\tailscale.msi"
+          Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-latest-amd64.msi" -OutFile $msiPath
+          Start-Process msiexec.exe -ArgumentList "/i", "`"$msiPath`"", "/quiet", "/norestart" -Wait
+          Remove-Item $msiPath -Force
+          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=$env:TAILSCALE_AUTH_KEY --hostname=LongDay-$env:GITHUB_RUN_ID --accept-routes --accept-dns --reset
+          $ip = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
+          echo "TAILSCALE_IP=$ip" >> $env:GITHUB_ENV
+          Write-Host "🌐 Tailscale IP: $ip"
+
+      # Thông tin kết nối
+      - name: 🎉 THÔNG TIN KẾT NỐI
+        run: |
+          $matKhau = $env:RDP_PASS
+          $ip = $env:TAILSCALE_IP
+          $durationInput = "${{ github.event.inputs.duration }}"
+          switch ($durationInput) {
+              "1h" { $displayTime = "1 giờ" }
+              "3h" { $displayTime = "3 giờ" }
+              "5h40m" { $displayTime = "5 giờ 40 phút" }
+          }
+
+          Write-Host ""
+          Write-Host "┌───────────────────────────────┐" -ForegroundColor Cyan
+          Write-Host "│ 🎉 KẾT NỐI THÀNH CÔNG!         │" -ForegroundColor Cyan
+          Write-Host "│ 🌐 Địa chỉ: $ip" -ForegroundColor White
+          Write-Host "│ 👤 User: LongDay2203" -ForegroundColor White
+          Write-Host "│ 🔐 Pass: $matKhau" -ForegroundColor White
+          Write-Host "│ ⏰ Thời lượng: $displayTime" -ForegroundColor White
+          Write-Host "└───────────────────────────────┘" -ForegroundColor Cyan
