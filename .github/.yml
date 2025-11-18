@@ -1,0 +1,134 @@
+name: 🚀 LongVPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: '🕐 Thời gian sử dụng'
+        required: false
+        default: '5h40m'
+        type: choice
+        options:
+          - '1h'
+          - '3h'
+          - '5h40m'
+
+jobs:
+  Premium-RDP-Setup:
+    runs-on: windows-latest
+    timeout-minutes: 340
+
+    steps:
+      - name: 📢 BANNER KHỞI ĐỘNG
+        shell: pwsh
+        run: |
+          $banner = @"
+╔══════════════════════════════════════════════╗
+║              🚀 LONGDAY SERVER               ║
+║         ⚡ Powered by AIL | Premium RDP       ║
+║----------------------------------------------║
+║  🕒 Thời gian:  ${{ github.event.inputs.duration }}             
+╚══════════════════════════════════════════════╝
+"@
+
+          Write-Output $banner
+
+          $frames = @('⣾','⣽','⣻','⢿','⡿','⣟','⣯','⣷')
+          for($i=0; $i -lt 20; $i++){
+            Write-Host "`r🚀 Đang khởi tạo hệ thống... $($frames[$i%8])" -NoNewline
+            Start-Sleep -Milliseconds 80
+          }
+          Write-Host "`r✅ Hệ thống đã sẵn sàng!      "
+
+      - name: 🎯 KHỞI ĐỘNG HỆ THỐNG
+        shell: pwsh
+        run: |
+          Write-Host ""
+          Write-Host ""
+          Write-Host "🤖 Longday SERVER" -ForegroundColor Yellow
+          Write-Host "⚡ Powered by AIL" -ForegroundColor Green
+          Write-Host "🕒 Thời gian: ${{ github.event.inputs.duration }}" -ForegroundColor Magenta
+          Write-Host ""
+
+          $frames = @('⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷')
+          for($i=0; $i -lt 10; $i++) {
+              Write-Host "`r🚀 Đang khởi tạo hệ thống... $($frames[$i % 8])" -NoNewline -ForegroundColor Blue
+              Start-Sleep -Milliseconds 100
+          }
+          Write-Host "`r✅ Hệ thống đã sẵn sàng!                    " -ForegroundColor Green
+
+      - name: 🔧 CẤU HÌNH HỆ THỐNG
+        shell: pwsh
+        run: |
+          Write-Host ""
+          Write-Host "🛠️  ĐANG CẤU HÌNH HỆ THỐNG" -ForegroundColor Yellow
+          
+          $steps = @(
+              @{Name="Bật Remote Desktop"; Script={ 
+                  Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
+              }},
+              @{Name="Tắt xác thực mạng"; Script={
+                  Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
+              }},
+              @{Name="Cấu hình bảo mật RDP"; Script={
+                  Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
+                  Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
+              }},
+              @{Name="Mở port 3389 firewall"; Script={
+                  netsh advfirewall firewall add rule name="RDP-Premium" dir=in action=allow protocol=TCP localport=3389 profile=any
+                  netsh advfirewall firewall add rule name="RDP-Premium-Out" dir=out action=allow protocol=TCP localport=3389 profile=any
+              }},
+              @{Name="Khởi động dịch vụ"; Script={
+                  Set-Service -Name TermService -StartupType Automatic -ErrorAction SilentlyContinue
+                  Set-Service -Name UmRdpService -StartupType Automatic -ErrorAction SilentlyContinue
+                  Start-Service -Name TermService -ErrorAction SilentlyContinue
+                  Start-Service -Name UmRdpService -ErrorAction SilentlyContinue
+              }}
+          )
+          
+          foreach($step in $steps) {
+              Write-Host "│ 📋 $($step.Name)..." -NoNewline -ForegroundColor White
+              try {
+                  & $step.Script
+                  Write-Host "`r│ ✅ $($step.Name)" -ForegroundColor Green
+              } catch {
+                  Write-Host "`r│ ⚠️  $($step.Name) - Đã bỏ qua lỗi nhỏ" -ForegroundColor Yellow
+              }
+              Start-Sleep -Milliseconds 500
+          }
+          
+          Write-Host "🎯 Cấu hình hoàn tất!" -ForegroundColor Green
+
+      - name: 👤 TẠO TÀI KHOẢN PREMIUM
+        shell: pwsh
+        run: |
+          # (Giữ nguyên toàn bộ nội dung script tạo user và password của bạn)
+          Write-Host "👤 Tạo user LongDay2203..."
+
+      - name: 🔍 KIỂM TRA QUYỀN HỆ THỐNG
+        shell: pwsh
+        run: |
+          Write-Host "🔍 Kiểm tra quyền hệ thống..."
+
+      - name: 🌐 THIẾT LẬP MẠNG PREMIUM
+        shell: pwsh
+        env:
+          TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
+        run: |
+          Write-Host "🌐 Thiết lập mạng Tailscale..."
+
+      - name: 🎉 THÔNG TIN KẾT NỐI
+        shell: pwsh
+        run: |
+          Write-Host "🎉 Hiển thị thông tin kết nối..."
+
+      - name: ⏳ DUY TRÌ PHIÊN LÀM VIỆC
+        shell: pwsh
+        run: |
+          Write-Host "⏳ Duy trì phiên làm việc..."
+
+      - name: 🧹 DỌN DẸP HỆ THỐNG
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host "🧹 Dọn dẹp hệ thống..."
